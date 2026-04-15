@@ -1,0 +1,18 @@
+[package]
+name = "ciel-demo"
+description = "CLI demo harness with pipeline visualization and colored output"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ciel-demo"
+path = "src/main.rs"
+
+[dependencies]
+ciel-sdk = { path = "../ciel-sdk" }
+ciel-signer = { path = "../ciel-signer" }
+ciel-fixtures = { path = "../ciel-fixtures" }
+clap = { workspace = true }
+colored = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }

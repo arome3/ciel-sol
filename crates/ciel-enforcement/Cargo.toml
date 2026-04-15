@@ -1,0 +1,18 @@
+[package]
+name = "ciel-enforcement"
+description = "Enforcement integrations: Lighthouse, Squads, Jito"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ciel-signer = { path = "../ciel-signer" }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+solana-sdk = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

@@ -1,0 +1,14 @@
+[package]
+name = "ciel-sdk"
+description = "Rust client library for the Ciel verdict API"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ciel-signer = { path = "../ciel-signer" }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+ed25519-dalek = { workspace = true }
+thiserror = { workspace = true }

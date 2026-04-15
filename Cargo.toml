@@ -1,0 +1,81 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ciel-fork",
+    "crates/ciel-signer",
+    "crates/ciel-checkers",
+    "crates/ciel-llm",
+    "crates/ciel-pipeline",
+    "crates/ciel-intent",
+    "crates/ciel-enforcement",
+    "crates/ciel-server",
+    "crates/ciel-sdk",
+    "crates/ciel-fixtures",
+    "crates/ciel-demo",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Abraham Arome Onoja"]
+
+[workspace.dependencies]
+# Solana — pin to 2.2 for litesvm 0.11 compatibility
+solana-sdk = "2.2"
+solana-client = "2.2"
+solana-transaction-status = "2.2"
+
+# Serialization
+borsh = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Async
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+
+# HTTP
+reqwest = { version = "0.12", features = ["json"] }
+axum = "0.7"
+tonic = "0.12"
+prost = "0.13"
+tower = "0.5"
+
+# Crypto
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+rand = "0.8"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json"] }
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+# Yellowstone gRPC (Geyser subscriber) — pinned to v6 for tonic 0.12 compat
+yellowstone-grpc-client = "6"
+yellowstone-grpc-proto = "6"
+tokio-stream = "0.1"
+
+# Data structures
+dashmap = "6"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# CLI (for ciel-demo)
+clap = { version = "4", features = ["derive"] }
+colored = "2"
+
+# Encoding
+base64 = "0.22"
+bincode = "1"
+
+# Errors
+thiserror = "1"
+anyhow = "1"
+
+# Testing
+litesvm = "0.11"

@@ -1,0 +1,18 @@
+[package]
+name = "ciel-signer"
+description = "Attestation schemas (CielAttestation, PolicyAttestation, OverrideAttestation) and Ed25519 signing"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+borsh = { workspace = true }
+ed25519-dalek = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+solana-sdk = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

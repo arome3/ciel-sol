@@ -1,0 +1,24 @@
+[package]
+name = "ciel-pipeline"
+description = "Verdict pipeline: fork sim → checkers → scorer → signer, plus override and pre-certified mode"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ciel-fork = { path = "../ciel-fork" }
+ciel-signer = { path = "../ciel-signer" }
+ciel-checkers = { path = "../ciel-checkers" }
+ciel-llm = { path = "../ciel-llm" }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+ciel-fixtures = { path = "../ciel-fixtures" }

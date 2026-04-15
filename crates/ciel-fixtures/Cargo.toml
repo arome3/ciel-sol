@@ -1,0 +1,18 @@
+[package]
+name = "ciel-fixtures"
+description = "Test fixture loaders for Drift exploit and other replay scenarios"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+solana-sdk = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+base64 = { workspace = true }
+bincode = { workspace = true }
+
+[dev-dependencies]
+solana-client = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }

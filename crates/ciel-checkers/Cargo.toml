@@ -1,0 +1,22 @@
+[package]
+name = "ciel-checkers"
+description = "Checker trait, 7 deterministic checkers, parallel runner, and scorer"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ciel-fork = { path = "../ciel-fork" }
+ciel-signer = { path = "../ciel-signer" }
+async-trait = { workspace = true }
+borsh = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+solana-sdk = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
