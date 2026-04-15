@@ -1,0 +1,64 @@
+// Ciel gRPC Service Definition
+// See spec Section 1.2 (Component Inventory) and Section 12.1 (SDK Surface).
+
+syntax = "proto3";
+
+package ciel.v1;
+
+service VerdictService {
+  // Evaluate a transaction or intent for safety and optimality.
+  rpc Evaluate (VerdictRequest) returns (VerdictResponse);
+}
+
+message VerdictRequest {
+  oneof input {
+    bytes raw_tx = 1;               // base64-encoded unsigned Solana transaction
+    IntentRequest intent = 2;       // structured intent
+    string nl_intent = 3;           // natural language intent
+  }
+}
+
+message IntentRequest {
+  string goal = 1;
+  IntentConstraints constraints = 2;
+  IntentBudget budget = 3;
+  optional string deadline = 4;     // ISO 8601
+}
+
+message IntentConstraints {
+  optional double max_slippage_pct = 1;
+  optional double min_output_amount = 2;
+  optional string preferred_dex = 3;
+  bool mev_protection = 4;
+}
+
+message IntentBudget {
+  string input_token = 1;
+  double input_amount = 2;
+  optional uint64 max_fee_lamports = 3;
+}
+
+message VerdictResponse {
+  bytes attestation = 1;            // Borsh-serialized CielAttestation
+  bytes signature = 2;              // Ed25519 signature (64 bytes)
+  string verdict = 3;               // "APPROVE", "WARN", "BLOCK", "TIMEOUT"
+  float safety_score = 4;
+  float optimality_score = 5;
+  optional string rationale = 6;    // LLM-generated, metadata only
+  repeated CheckerDetail checker_details = 7;
+  uint64 latency_ms = 8;
+}
+
+message CheckerDetail {
+  string checker_name = 1;
+  bool passed = 2;
+  string severity = 3;
+  repeated Flag flags = 4;
+  string details = 5;
+}
+
+message Flag {
+  string code = 1;
+  string message = 2;
+  string data_json = 3;             // JSON-encoded arbitrary data
+}
