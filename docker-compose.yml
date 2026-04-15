@@ -1,0 +1,55 @@
+# Ciel Docker Compose — Hackathon Deployment
+# See spec Section 16.2 for container orchestration design.
+# Three containers: ciel (Rust API), x402-gateway (TS proxy), db (Postgres)
+
+services:
+  ciel:
+    build: .
+    ports:
+      - "50051:50051"  # gRPC
+      - "8080:8080"    # REST
+    environment:
+      - HELIUS_API_KEY=${HELIUS_API_KEY}
+      - TRITON_API_KEY=${TRITON_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - FIREWORKS_API_KEY=${FIREWORKS_API_KEY}
+      - CIEL_SIGNING_KEY_PATH=/keys/ciel.json
+      - DATABASE_URL=postgres://ciel:ciel_pass@db:5432/ciel
+      - HELIUS_LASERSTREAM_URL=${HELIUS_LASERSTREAM_URL:-}
+      - JITO_BLOCK_ENGINE_URL=${JITO_BLOCK_ENGINE_URL:-https://mainnet.block-engine.jito.wtf}
+    volumes:
+      - ./keys:/keys:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  x402-gateway:
+    build: ./gateway
+    ports:
+      - "443:443"
+    environment:
+      - CIEL_UPSTREAM=http://ciel:8080
+      - CIEL_TREASURY_PUBKEY=${CIEL_TREASURY_PUBKEY}
+      - DATABASE_URL=postgres://ciel:ciel_pass@db:5432/ciel
+    depends_on:
+      - ciel
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=ciel
+      - POSTGRES_USER=ciel
+      - POSTGRES_PASSWORD=ciel_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ciel"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
