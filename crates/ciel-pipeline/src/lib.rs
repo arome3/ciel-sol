@@ -7,3 +7,31 @@ pub mod verdict_store;
 pub mod override_handler;
 pub mod pre_certified;
 pub mod intent_pipeline;
+
+// ---------------------------------------------------------------------------
+// Error type
+// ---------------------------------------------------------------------------
+
+/// Errors from the verdict pipeline.
+#[derive(Debug, thiserror::Error)]
+pub enum PipelineError {
+    #[error("fork simulation failed: {0}")]
+    ForkSim(#[from] ciel_fork::ForkError),
+
+    #[error("signer error: {0}")]
+    Signer(#[from] ciel_signer::SignerError),
+
+    #[error("pipeline timed out after {elapsed_ms}ms")]
+    Timeout { elapsed_ms: u64 },
+
+    #[error("transaction serialization failed: {0}")]
+    Deserialization(String),
+}
+
+// ---------------------------------------------------------------------------
+// Re-exports
+// ---------------------------------------------------------------------------
+
+pub use pipeline::{PipelineConfig, PipelineTiming, VerdictPipeline, VerdictResponse};
+pub use scorer_stub::{compute_safety_score, encode_score_u16, score_to_verdict};
+pub use verdict_store::{log_verdict, VerdictLogEntry};
