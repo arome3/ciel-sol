@@ -1,0 +1,38 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Node / TypeScript
+node_modules/
+dist/
+*.js.map
+gateway/node_modules/
+sdk/*/node_modules/
+
+# Environment
+.env
+*.pem
+keys/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Anchor
+programs/**/target/
+.anchor/
+test-ledger/
+
+# Postgres data (Docker volume)
+pgdata/
+
+# Build artifacts
+*.so
+*.dylib
