@@ -33,6 +33,10 @@ test-ledger/
 # Postgres data (Docker volume)
 pgdata/
 
+# Markdown (specs, docs, prompts — kept local)
+*.md
+!README.md
+
 # Build artifacts
 *.so
 *.dylib
