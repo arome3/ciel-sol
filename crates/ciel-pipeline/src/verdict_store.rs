@@ -23,6 +23,10 @@ use sqlx::PgPool;
 pub struct VerdictLogEntry {
     pub request_type: String,
     pub tx_hash: Vec<u8>,
+    /// The actual Solana transaction signature (first sig in the tx).
+    /// Used by the outcome capture task to query on-chain status via
+    /// getSignatureStatuses. See spec Section 13.3, migrations/002_tx_signature.sql.
+    pub tx_signature: Option<Vec<u8>>,
     pub verdict: String,
     pub safety_score: Option<f32>,
     pub optimality_score: Option<f32>,
@@ -58,13 +62,14 @@ pub fn log_verdict(pool: &PgPool, entry: VerdictLogEntry) {
 async fn insert_verdict(pool: &PgPool, entry: &VerdictLogEntry) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"INSERT INTO verdict_log (
-            request_type, tx_hash, verdict, safety_score, optimality_score,
+            request_type, tx_hash, tx_signature, verdict, safety_score, optimality_score,
             attestation, signature, checker_outputs, checker_outputs_hash,
             checkers_timed_out, total_latency_ms, fork_sim_ms, checkers_ms, signing_ms
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)"#,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)"#,
     )
     .bind(&entry.request_type)
     .bind(&entry.tx_hash)
+    .bind(&entry.tx_signature)
     .bind(&entry.verdict)
     .bind(entry.safety_score)
     .bind(entry.optimality_score)
