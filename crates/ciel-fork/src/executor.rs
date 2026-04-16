@@ -80,7 +80,7 @@ pub fn execute_transaction(
 
             let balance_deltas = compute_balance_deltas(&pre_state, &post_accounts);
             let account_changes = compute_account_changes(&pre_state, &post_accounts);
-            let cpi_graph = extract_cpi_graph(&meta.inner_instructions, &account_keys);
+            let cpi_graph = extract_cpi_graph(tx, &meta.inner_instructions, &account_keys);
             let oracle_reads = detect_oracle_reads(tx, &meta.logs);
             let token_approvals = detect_token_approvals(tx);
 
@@ -100,7 +100,7 @@ pub fn execute_transaction(
         Err(failed) => {
             // Failure path: state not modified, but we still get metadata.
             let meta = &failed.meta;
-            let cpi_graph = extract_cpi_graph(&meta.inner_instructions, &account_keys);
+            let cpi_graph = extract_cpi_graph(tx, &meta.inner_instructions, &account_keys);
             let oracle_reads = detect_oracle_reads(tx, &meta.logs);
             let token_approvals = detect_token_approvals(tx);
 
@@ -194,17 +194,48 @@ fn compute_account_changes(
     changes
 }
 
-/// Extract CPI call graph from LiteSVM inner instructions.
+/// Build the unified program-invocation call graph: top-level instructions
+/// from the input transaction (Layer 1, stack_height=1) followed by inner
+/// CPIs surfaced by execution metadata (Layer 2, stack_height>=2).
 ///
-/// `inner_instructions` is `Vec<Vec<InnerInstruction>>` — outer vec has one entry
-/// per top-level instruction, inner vec has the CPI calls from that instruction.
-/// Each `InnerInstruction.instruction.program_id_index` indexes into `account_keys`.
+/// Layer 1 always populates — even when simulation fails before execution
+/// (e.g., stale blockhash on a captured fixture). Without this, checkers
+/// like Authority Diff would see an empty graph for the Drift exploit
+/// fixture and produce false negatives. Same two-layer pattern as
+/// `detect_oracle_reads`.
 fn extract_cpi_graph(
+    tx: &Transaction,
     inner_instructions: &litesvm_message::inner_instruction::InnerInstructionsList,
     account_keys: &[Pubkey],
 ) -> Vec<CpiCall> {
     let mut calls = Vec::new();
 
+    // Layer 1: top-level instructions, derived from the input tx bytes alone.
+    // These are the calls the user signed; they are part of the call graph
+    // regardless of whether simulation makes any forward progress.
+    for (ix_index, ix) in tx.message.instructions.iter().enumerate() {
+        let program_id = account_keys
+            .get(ix.program_id_index as usize)
+            .copied()
+            .unwrap_or_default();
+
+        let accounts: Vec<Pubkey> = ix
+            .accounts
+            .iter()
+            .map(|&idx| account_keys.get(idx as usize).copied().unwrap_or_default())
+            .collect();
+
+        calls.push(CpiCall {
+            program_id,
+            instruction_index: ix_index,
+            stack_height: 1,
+            accounts,
+            data: ix.data.clone(),
+        });
+    }
+
+    // Layer 2: inner CPIs from execution metadata. Only populated when
+    // simulation runs at least far enough to invoke a CPI.
     for (ix_index, inner_ixs) in inner_instructions.iter().enumerate() {
         for inner in inner_ixs {
             let program_id_index = inner.instruction.program_id_index as usize;
@@ -219,12 +250,7 @@ fn extract_cpi_graph(
                 .instruction
                 .accounts
                 .iter()
-                .map(|&idx| {
-                    account_keys
-                        .get(idx as usize)
-                        .copied()
-                        .unwrap_or_default()
-                })
+                .map(|&idx| account_keys.get(idx as usize).copied().unwrap_or_default())
                 .collect();
 
             calls.push(CpiCall {
@@ -547,6 +573,21 @@ mod tests {
         // Token approvals: the synthetic fixture uses SetAuthority (discriminator 6),
         // not Approve (discriminator 4), so token_approvals is correctly empty here.
         // This is NOT a gap — the Authority Diff checker handles SetAuthority separately.
+
+        // CPI graph Layer 1 must populate from input instructions even when the
+        // tx fails. The synthetic fixture has 3 top-level instructions
+        // (Switchboard update, SetAuthority, Transfer), so cpi_graph must have
+        // at least 3 entries with stack_height=1.
+        let top_level_count = trace
+            .cpi_graph
+            .iter()
+            .filter(|c| c.stack_height == 1)
+            .count();
+        assert_eq!(
+            top_level_count, 3,
+            "Synthetic fixture has 3 top-level instructions; expected 3 \
+             cpi_graph entries with stack_height=1, got {top_level_count}"
+        );
     }
 
     #[test]
@@ -554,6 +595,15 @@ mod tests {
         // Real Drift exploit fixture: admin key transfer via Squads multisig (slot 410344009).
         // This is the actual transaction from the Drift exploit — more important for the demo
         // than the synthetic fixture.
+        //
+        // Tx structure (from real_exploit_metadata.json):
+        //   ix[0]: System AdvanceNonce
+        //   ix[1]: Squads ProposalApprove
+        //   ix[2]: Squads VaultTransactionExecute → CPIs into Drift UpdateAdmin
+        //
+        // The CPI graph MUST capture the Squads-to-Drift call structure, or the
+        // Authority Diff checker (Unit 11) will produce false negatives on the
+        // single most important demo fixture.
         let fixture = match ciel_fixtures::load_drift_real_fixture() {
             Ok(f) => f,
             Err(e) => {
@@ -573,13 +623,70 @@ mod tests {
         let trace =
             execute_transaction(&mut fork, &fixture.transaction).expect("should return trace");
 
-        // Real fixture fails at blockhash check, but trace should not panic.
-        // The real tx is a Squads CPI to Drift admin transfer — no oracle reads
-        // or token approvals (it's a pure admin key transfer, not a trading tx).
-        // oracle_reads and token_approvals being empty is correct here.
+        // Real fixture fails at blockhash check (account state was captured at
+        // current slot, not slot 410344009). Trace must still populate from input.
         assert!(
             trace.error.is_some(),
-            "real fixture tx should fail (stale blockhash)"
+            "real fixture tx should fail (stale blockhash); err was: {:?}",
+            trace.error
+        );
+
+        let squads_pid = ciel_fixtures::drift::squads_program_id();
+        let drift_pid = ciel_fixtures::drift::drift_program_id();
+
+        // CPI graph must NOT be empty. Even though execution fails before any
+        // CPI runs, Layer 1 (top-level instructions) must populate the graph.
+        // An empty cpi_graph here would cause Unit 11's Authority Diff to say
+        // "no SetAuthority/UpdateAdmin found" because the graph was empty,
+        // not because the transaction was safe — a silent false negative.
+        assert!(
+            !trace.cpi_graph.is_empty(),
+            "cpi_graph must not be empty; Layer 1 (top-level instructions) \
+             should populate even when simulation fails before execution. \
+             Empty cpi_graph causes Authority Diff false negatives."
+        );
+
+        // Squads must appear as a top-level program — the multisig executes the
+        // attack via VaultTransactionExecute (ix[2]) and ProposalApprove (ix[1]).
+        let squads_top_levels: Vec<&CpiCall> = trace
+            .cpi_graph
+            .iter()
+            .filter(|c| c.program_id == squads_pid && c.stack_height == 1)
+            .collect();
+        assert!(
+            !squads_top_levels.is_empty(),
+            "Expected Squads ({squads_pid}) as a top-level program in cpi_graph; \
+             got program_ids: {:?}",
+            trace
+                .cpi_graph
+                .iter()
+                .map(|c| c.program_id)
+                .collect::<Vec<_>>()
+        );
+
+        // Drift must be reachable from the call graph. With a successful
+        // execution, Drift would appear as its own cpi_graph entry with
+        // stack_height >= 2 (the inner CPI from Squads VaultTransactionExecute).
+        // With execution that fails at blockhash check (this fixture), the inner
+        // CPI didn't run — but Drift is still discoverable as an account in the
+        // Squads VaultTransactionExecute instruction's `accounts` list, because
+        // Squads passes the inner program in `remaining_accounts`. The Authority
+        // Diff checker (Unit 11) handles both shapes.
+        let drift_as_program = trace.cpi_graph.iter().any(|c| c.program_id == drift_pid);
+        let drift_in_accounts = trace
+            .cpi_graph
+            .iter()
+            .any(|c| c.accounts.contains(&drift_pid));
+        assert!(
+            drift_as_program || drift_in_accounts,
+            "Expected Drift ({drift_pid}) somewhere in cpi_graph: either as a \
+             CPI program_id (successful execution) or in a top-level instruction's \
+             accounts (Squads remaining_accounts). Found neither. cpi_graph: {:?}",
+            trace
+                .cpi_graph
+                .iter()
+                .map(|c| (c.program_id, c.stack_height, c.accounts.len()))
+                .collect::<Vec<_>>()
         );
     }
 

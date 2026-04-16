@@ -24,7 +24,13 @@ pub struct SimulationTrace {
     /// SOL balance changes per account in lamports (signed).
     /// Positive = received lamports, negative = sent or paid fees.
     pub balance_deltas: HashMap<Pubkey, i64>,
-    /// CPI call graph — program invocations with depth, accounts, and data.
+    /// Complete program-invocation call graph as a flat list, ordered top-level
+    /// instructions first (stack_height=1) followed by inner CPIs from execution
+    /// (stack_height>=2). Including top-level entries — even when execution fails
+    /// before any CPIs run (e.g., stale blockhash in a captured fixture) — is
+    /// what lets checkers like Authority Diff find admin transfers from input
+    /// bytes alone. Without that Layer-1 baseline, every captured-fixture verdict
+    /// would be a false negative. Same pattern as `oracle_reads`. See `CpiCall`.
     pub cpi_graph: Vec<CpiCall>,
     /// Account state changes: owner, lamports, and data length diffs.
     pub account_changes: Vec<AccountChange>,
@@ -40,14 +46,30 @@ pub struct SimulationTrace {
     pub fee: u64,
 }
 
-/// A single CPI (Cross-Program Invocation) call within the transaction.
+/// A single program invocation in the transaction's call graph. Despite the
+/// name, this represents BOTH top-level instructions (`stack_height = 1`) and
+/// actual cross-program invocations made during execution (`stack_height >= 2`).
+/// The flat list in `SimulationTrace.cpi_graph` is the unified call graph;
+/// checkers iterate it without caring whether a call was top-level or nested.
+///
+/// Top-level entries are derived from `Transaction.message.instructions` and
+/// always populate, even when simulation fails before any code runs. Inner
+/// entries (`stack_height >= 2`) are derived from LiteSVM's `inner_instructions`
+/// and only populate when execution makes progress.
+///
+/// For Squads `VaultTransactionExecute`-style indirection (where the inner
+/// program — e.g., Drift `UpdateAdmin` — is reached via a CPI that didn't run
+/// in a captured fixture), the inner program ID is still discoverable via the
+/// outer call's `accounts` field (Squads passes the inner program in
+/// `remaining_accounts`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CpiCall {
     /// The program being invoked.
     pub program_id: Pubkey,
-    /// Index of the top-level instruction that triggered this CPI.
+    /// Index of the top-level instruction (`tx.message.instructions[i]`) this
+    /// call belongs to. For top-level calls, this is the call's own index.
     pub instruction_index: usize,
-    /// Call depth: 2 = direct CPI from top-level, 3 = nested, etc.
+    /// Call depth: 1 = top-level instruction, 2 = direct CPI, 3 = nested CPI, …
     pub stack_height: u8,
     /// Accounts passed to this invocation (resolved from indices).
     pub accounts: Vec<Pubkey>,

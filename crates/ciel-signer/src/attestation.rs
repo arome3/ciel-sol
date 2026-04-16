@@ -399,10 +399,10 @@ mod tests {
         assert_eq!(&ovr_bytes[0..4], &OVERRIDE_ATTESTATION_MAGIC);
     }
 
-    /// Canonical fixture for cross-version wire compatibility.
-    /// These bytes are the ground truth — if this test fails, the Borsh
-    /// wire format has changed and on-chain deserialization will break.
-    /// See also: crates/ciel-signer/fixtures/ciel_attestation_v1.bin
+    /// Sanity check: hardcoded byte assertion for the [0xAA; 32]-sample CielAttestation.
+    /// This test does NOT use the committed binary fixture file — that's what the
+    /// `_v1` tests below do. This test exists as a quick local check that the
+    /// Borsh field order has not been reordered by accident.
     #[test]
     fn test_ciel_attestation_wire_fixture() {
         let att = sample_ciel_attestation();
@@ -454,27 +454,10 @@ mod tests {
             &expected[..],
             "CielAttestation wire format has changed — this breaks on-chain deserialization"
         );
-
-        // Also verify the fixture file if it exists (written once, committed to repo).
-        let fixture_path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/fixtures/ciel_attestation_v1.bin"
-        );
-        if std::path::Path::new(fixture_path).exists() {
-            let fixture_bytes = std::fs::read(fixture_path).unwrap();
-            assert_eq!(
-                bytes.as_slice(),
-                fixture_bytes.as_slice(),
-                "serialization does not match committed fixture file"
-            );
-        } else {
-            // Generate the fixture file on first run
-            std::fs::create_dir_all(concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures")).unwrap();
-            std::fs::write(fixture_path, &bytes).unwrap();
-        }
     }
 
-    /// Same fixture test for PolicyAttestation.
+    /// Same hardcoded sanity check for PolicyAttestation. The byte-distinct
+    /// `_v1` test uses the committed fixture file as the source of truth.
     #[test]
     fn test_policy_attestation_wire_fixture() {
         let att = sample_policy_attestation();
@@ -508,6 +491,307 @@ mod tests {
             bytes.as_slice(),
             &expected[..],
             "PolicyAttestation wire format has changed — this breaks on-chain deserialization"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // v1 wire-format fixtures: byte-distinct values + committed binary fixture
+    // -----------------------------------------------------------------------
+    //
+    // These tests are the contract that pins the Borsh wire format for
+    // cross-version compatibility. Both ciel-signer (off-chain, borsh 1.x)
+    // and ciel-assert (on-chain, Anchor/borsh) MUST produce and consume
+    // identical bytes for these fixtures. See CLAUDE.md Invariant #6.
+    //
+    // The tests are structured as a triangle:
+    //
+    //   attestation_fixtures.json  ─┐
+    //                               ├─ rust struct ── borsh ── byte_vec
+    //   *.bin (committed bytes)  ──┘                              │
+    //                                                              ▼
+    //                                                    assert byte-equal
+    //
+    // If any of the three points (JSON values, Rust struct field order,
+    // committed bytes) drifts, the test fails. The on-chain Unit 20 program
+    // adds a fourth point: it deserializes the same .bin file and asserts
+    // structural equality.
+
+    /// Decode lowercase hex string to bytes. Test-only helper.
+    fn hex_to_bytes(hex: &str) -> Vec<u8> {
+        assert!(hex.len().is_multiple_of(2), "hex string must have even length");
+        (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("valid hex digit"))
+            .collect()
+    }
+
+    /// Decode a hex string into a fixed-size byte array.
+    fn hex_to_array<const N: usize>(hex: &str) -> [u8; N] {
+        let v = hex_to_bytes(hex);
+        assert_eq!(v.len(), N, "hex string decodes to {} bytes, expected {N}", v.len());
+        let mut out = [0u8; N];
+        out.copy_from_slice(&v);
+        out
+    }
+
+    /// Path to the attestation fixtures JSON manifest.
+    fn manifest_path() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("fixtures")
+            .join("attestation_fixtures.json")
+    }
+
+    /// Path to a fixture binary file by name.
+    fn fixture_bin_path(name: &str) -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("fixtures")
+            .join(name)
+    }
+
+    /// Load and parse the attestation fixtures JSON manifest.
+    fn load_manifest() -> serde_json::Value {
+        let s = std::fs::read_to_string(manifest_path())
+            .expect("attestation_fixtures.json must exist — see CLAUDE.md Invariant #6");
+        serde_json::from_str(&s).expect("attestation_fixtures.json must be valid JSON")
+    }
+
+    /// Construct CielAttestation from the JSON manifest's v1 entry.
+    fn ciel_attestation_v1_from_manifest(manifest: &serde_json::Value) -> CielAttestation {
+        let f = &manifest["ciel_attestation_v1"]["fields"];
+        CielAttestation {
+            magic: hex_to_array::<4>(f["magic"].as_str().unwrap()),
+            version: f["version"].as_u64().unwrap() as u8,
+            tx_hash: hex_to_array::<32>(f["tx_hash"].as_str().unwrap()),
+            verdict: f["verdict"].as_u64().unwrap() as u8,
+            safety_score: f["safety_score"].as_u64().unwrap() as u16,
+            optimality_score: f["optimality_score"].as_u64().unwrap() as u16,
+            checker_outputs_hash: hex_to_array::<32>(f["checker_outputs_hash"].as_str().unwrap()),
+            slot: f["slot"].as_u64().unwrap(),
+            expiry_slot: f["expiry_slot"].as_u64().unwrap(),
+            signer: hex_to_array::<32>(f["signer"].as_str().unwrap()),
+            timestamp: f["timestamp"].as_i64().unwrap(),
+            timeout_at_ms: f["timeout_at_ms"].as_u64().unwrap() as u16,
+        }
+    }
+
+    /// Construct PolicyAttestation from the JSON manifest's v1 entry.
+    fn policy_attestation_v1_from_manifest(manifest: &serde_json::Value) -> PolicyAttestation {
+        let f = &manifest["policy_attestation_v1"]["fields"];
+        PolicyAttestation {
+            magic: hex_to_array::<4>(f["magic"].as_str().unwrap()),
+            version: f["version"].as_u64().unwrap() as u8,
+            policy_hash: hex_to_array::<32>(f["policy_hash"].as_str().unwrap()),
+            signer: hex_to_array::<32>(f["signer"].as_str().unwrap()),
+            issued_slot: f["issued_slot"].as_u64().unwrap(),
+            expires_at: f["expires_at"].as_i64().unwrap(),
+            revoked: f["revoked"].as_bool().unwrap(),
+        }
+    }
+
+    /// Construct OverrideAttestation from the JSON manifest's v1 entry.
+    fn override_attestation_v1_from_manifest(manifest: &serde_json::Value) -> OverrideAttestation {
+        let f = &manifest["override_attestation_v1"]["fields"];
+        OverrideAttestation {
+            magic: hex_to_array::<4>(f["magic"].as_str().unwrap()),
+            version: f["version"].as_u64().unwrap() as u8,
+            original_attestation_hash: hex_to_array::<32>(
+                f["original_attestation_hash"].as_str().unwrap(),
+            ),
+            override_type: f["override_type"].as_u64().unwrap() as u8,
+            overrider: hex_to_array::<32>(f["overrider"].as_str().unwrap()),
+            slot: f["slot"].as_u64().unwrap(),
+            timestamp: f["timestamp"].as_i64().unwrap(),
+        }
+    }
+
+    /// Wire-format pin: serialized JSON-manifest attestation == committed fixture bytes.
+    /// Failing this means either the Borsh field layout, the JSON manifest, or the
+    /// committed binary has drifted. On-chain CielAssert deserialization breaks the
+    /// moment any of those three goes out of sync. See CLAUDE.md Invariant #6.
+    #[test]
+    fn test_ciel_attestation_wire_fixture_v1() {
+        let manifest = load_manifest();
+        let att = ciel_attestation_v1_from_manifest(&manifest);
+        let serialized = borsh::to_vec(&att).expect("serialization must succeed");
+        assert_eq!(
+            serialized.len(),
+            132,
+            "CielAttestation must be exactly 132 bytes"
+        );
+
+        let fixture_bytes = std::fs::read(fixture_bin_path("ciel_attestation_v1.bin"))
+            .expect("fixtures/ciel_attestation_v1.bin must exist");
+        assert_eq!(
+            serialized.as_slice(),
+            fixture_bytes.as_slice(),
+            "CielAttestation v1 wire format drift — JSON manifest, Rust struct, \
+             and committed fixture must agree byte-for-byte. See CLAUDE.md Invariant #6."
+        );
+    }
+
+    /// Same wire-format pin for PolicyAttestation v1.
+    #[test]
+    fn test_policy_attestation_wire_fixture_v1() {
+        let manifest = load_manifest();
+        let att = policy_attestation_v1_from_manifest(&manifest);
+        let serialized = borsh::to_vec(&att).expect("serialization must succeed");
+        assert_eq!(
+            serialized.len(),
+            86,
+            "PolicyAttestation must be exactly 86 bytes"
+        );
+
+        let fixture_bytes = std::fs::read(fixture_bin_path("policy_attestation_v1.bin"))
+            .expect("fixtures/policy_attestation_v1.bin must exist");
+        assert_eq!(
+            serialized.as_slice(),
+            fixture_bytes.as_slice(),
+            "PolicyAttestation v1 wire format drift — JSON manifest, Rust struct, \
+             and committed fixture must agree byte-for-byte. See CLAUDE.md Invariant #6."
+        );
+    }
+
+    /// Same wire-format pin for OverrideAttestation v1.
+    #[test]
+    fn test_override_attestation_wire_fixture_v1() {
+        let manifest = load_manifest();
+        let att = override_attestation_v1_from_manifest(&manifest);
+        let serialized = borsh::to_vec(&att).expect("serialization must succeed");
+        assert_eq!(
+            serialized.len(),
+            86,
+            "OverrideAttestation must be exactly 86 bytes"
+        );
+
+        let fixture_bytes = std::fs::read(fixture_bin_path("override_attestation_v1.bin"))
+            .expect("fixtures/override_attestation_v1.bin must exist");
+        assert_eq!(
+            serialized.as_slice(),
+            fixture_bytes.as_slice(),
+            "OverrideAttestation v1 wire format drift — JSON manifest, Rust struct, \
+             and committed fixture must agree byte-for-byte. See CLAUDE.md Invariant #6."
+        );
+    }
+
+    /// Round-trip: load fixture bytes → Borsh-deserialize → re-serialize → bytes must equal.
+    /// Catches asymmetric serialize/deserialize bugs (e.g., reading an extra padding byte
+    /// that doesn't get written back).
+    #[test]
+    fn test_ciel_attestation_wire_fixture_v1_roundtrip() {
+        let original = std::fs::read(fixture_bin_path("ciel_attestation_v1.bin"))
+            .expect("fixtures/ciel_attestation_v1.bin must exist");
+        let decoded: CielAttestation =
+            borsh::from_slice(&original).expect("must deserialize from committed fixture");
+        let reserialized = borsh::to_vec(&decoded).expect("must re-serialize");
+        assert_eq!(
+            original.as_slice(),
+            reserialized.as_slice(),
+            "round-trip drift on CielAttestation"
+        );
+
+        // Verify the decoded values match the manifest as a sanity check.
+        let manifest = load_manifest();
+        let expected = ciel_attestation_v1_from_manifest(&manifest);
+        assert_eq!(decoded.magic, expected.magic);
+        assert_eq!(decoded.version, expected.version);
+        assert_eq!(decoded.tx_hash, expected.tx_hash);
+        assert_eq!(decoded.verdict, expected.verdict);
+        assert_eq!(decoded.safety_score, expected.safety_score);
+        assert_eq!(decoded.optimality_score, expected.optimality_score);
+        assert_eq!(decoded.checker_outputs_hash, expected.checker_outputs_hash);
+        assert_eq!(decoded.slot, expected.slot);
+        assert_eq!(decoded.expiry_slot, expected.expiry_slot);
+        assert_eq!(decoded.signer, expected.signer);
+        assert_eq!(decoded.timestamp, expected.timestamp);
+        assert_eq!(decoded.timeout_at_ms, expected.timeout_at_ms);
+    }
+
+    #[test]
+    fn test_policy_attestation_wire_fixture_v1_roundtrip() {
+        let original = std::fs::read(fixture_bin_path("policy_attestation_v1.bin"))
+            .expect("fixtures/policy_attestation_v1.bin must exist");
+        let decoded: PolicyAttestation =
+            borsh::from_slice(&original).expect("must deserialize from committed fixture");
+        let reserialized = borsh::to_vec(&decoded).expect("must re-serialize");
+        assert_eq!(
+            original.as_slice(),
+            reserialized.as_slice(),
+            "round-trip drift on PolicyAttestation"
+        );
+
+        let manifest = load_manifest();
+        let expected = policy_attestation_v1_from_manifest(&manifest);
+        assert_eq!(decoded.magic, expected.magic);
+        assert_eq!(decoded.version, expected.version);
+        assert_eq!(decoded.policy_hash, expected.policy_hash);
+        assert_eq!(decoded.signer, expected.signer);
+        assert_eq!(decoded.issued_slot, expected.issued_slot);
+        assert_eq!(decoded.expires_at, expected.expires_at);
+        assert_eq!(decoded.revoked, expected.revoked);
+    }
+
+    #[test]
+    fn test_override_attestation_wire_fixture_v1_roundtrip() {
+        let original = std::fs::read(fixture_bin_path("override_attestation_v1.bin"))
+            .expect("fixtures/override_attestation_v1.bin must exist");
+        let decoded: OverrideAttestation =
+            borsh::from_slice(&original).expect("must deserialize from committed fixture");
+        let reserialized = borsh::to_vec(&decoded).expect("must re-serialize");
+        assert_eq!(
+            original.as_slice(),
+            reserialized.as_slice(),
+            "round-trip drift on OverrideAttestation"
+        );
+
+        let manifest = load_manifest();
+        let expected = override_attestation_v1_from_manifest(&manifest);
+        assert_eq!(decoded.magic, expected.magic);
+        assert_eq!(decoded.version, expected.version);
+        assert_eq!(
+            decoded.original_attestation_hash,
+            expected.original_attestation_hash
+        );
+        assert_eq!(decoded.override_type, expected.override_type);
+        assert_eq!(decoded.overrider, expected.overrider);
+        assert_eq!(decoded.slot, expected.slot);
+        assert_eq!(decoded.timestamp, expected.timestamp);
+    }
+
+    /// One-shot bootstrap helper. Run with:
+    ///   cargo test --package ciel-signer write_attestation_v1_fixtures -- --ignored --nocapture
+    /// Writes the three v1 binary fixtures to disk based on the JSON manifest values.
+    /// Intended to run only when the JSON manifest changes; the committed .bin files
+    /// are the source of truth that on-chain Unit 20 deserializes against.
+    #[test]
+    #[ignore]
+    fn write_attestation_v1_fixtures() {
+        let manifest = load_manifest();
+
+        let ciel = ciel_attestation_v1_from_manifest(&manifest);
+        let ciel_bytes = borsh::to_vec(&ciel).expect("serialize CielAttestation");
+        std::fs::write(fixture_bin_path("ciel_attestation_v1.bin"), &ciel_bytes)
+            .expect("write ciel_attestation_v1.bin");
+        eprintln!(
+            "wrote {} bytes to ciel_attestation_v1.bin",
+            ciel_bytes.len()
+        );
+
+        let policy = policy_attestation_v1_from_manifest(&manifest);
+        let policy_bytes = borsh::to_vec(&policy).expect("serialize PolicyAttestation");
+        std::fs::write(fixture_bin_path("policy_attestation_v1.bin"), &policy_bytes)
+            .expect("write policy_attestation_v1.bin");
+        eprintln!(
+            "wrote {} bytes to policy_attestation_v1.bin",
+            policy_bytes.len()
+        );
+
+        let ovr = override_attestation_v1_from_manifest(&manifest);
+        let ovr_bytes = borsh::to_vec(&ovr).expect("serialize OverrideAttestation");
+        std::fs::write(fixture_bin_path("override_attestation_v1.bin"), &ovr_bytes)
+            .expect("write override_attestation_v1.bin");
+        eprintln!(
+            "wrote {} bytes to override_attestation_v1.bin",
+            ovr_bytes.len()
         );
     }
 

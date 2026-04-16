@@ -1,0 +1,50 @@
+{
+  "_documentation": "Cross-version wire-format fixtures for Ciel attestation types. Each entry documents every Borsh-serialized field used to generate the corresponding .bin file in this directory. Both off-chain (ciel-signer, borsh 1.x) and on-chain (ciel-assert, Anchor/borsh) implementations MUST produce and consume identical bytes. See CLAUDE.md Invariant #6 and ciel-technical-spec.md Sections 7.1, 7.5, 7.7. Hex-encoded byte arrays are lowercase, no separators. Integer fields are decimal. All values were chosen to be byte-distinct within a fixture so that field-order swaps are detected.",
+  "ciel_attestation_v1": {
+    "_size_bytes": 132,
+    "_fixture_file": "ciel_attestation_v1.bin",
+    "_spec_section": "7.1",
+    "fields": {
+      "magic": "4349454c",
+      "version": 1,
+      "tx_hash": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+      "verdict": 2,
+      "safety_score": 3500,
+      "optimality_score": 0,
+      "checker_outputs_hash": "2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40",
+      "slot": 350000000,
+      "expiry_slot": 350000002,
+      "signer": "4142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60",
+      "timestamp": 1712000000,
+      "timeout_at_ms": 0
+    }
+  },
+  "policy_attestation_v1": {
+    "_size_bytes": 86,
+    "_fixture_file": "policy_attestation_v1.bin",
+    "_spec_section": "7.5",
+    "fields": {
+      "magic": "43494c50",
+      "version": 1,
+      "policy_hash": "7172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f90",
+      "signer": "9192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0",
+      "issued_slot": 360000000,
+      "expires_at": 1712001000,
+      "revoked": false
+    }
+  },
+  "override_attestation_v1": {
+    "_size_bytes": 86,
+    "_fixture_file": "override_attestation_v1.bin",
+    "_spec_section": "7.7",
+    "fields": {
+      "magic": "434c4f56",
+      "version": 1,
+      "original_attestation_hash": "c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0",
+      "override_type": 0,
+      "overrider": "8182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0",
+      "slot": 370000000,
+      "timestamp": 1712002000
+    }
+  }
+}
