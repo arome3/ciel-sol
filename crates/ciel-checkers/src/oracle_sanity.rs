@@ -371,7 +371,7 @@ mod tests {
             intent: None,
             slot: 350_000_000,
             oracle_cache: cache,
-            known_programs: ProgramRegistry,
+            known_programs: ProgramRegistry::default(),
         }
     }
 

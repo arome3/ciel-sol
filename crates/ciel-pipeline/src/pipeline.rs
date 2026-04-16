@@ -155,7 +155,7 @@ impl VerdictPipeline {
             intent: None,
             slot,
             oracle_cache: OracleCache::default(),
-            known_programs: ProgramRegistry,
+            known_programs: ProgramRegistry::with_mainnet_defaults(),
         };
         let checker_results = run_checkers(&checker_ctx, &self.checkers).await;
         let checkers_ms = checkers_start.elapsed().as_millis() as u64;
@@ -696,13 +696,101 @@ mod tests {
         );
     }
 
-    /// End-to-end: Drift exploit fixture → pipeline → signed attestation.
+    /// Build a checker list that swaps the `AuthorityDiffStub` for the real
+    /// `AuthorityDiffChecker` while keeping the other six stubs. Used by the
+    /// real-Drift E2E test below; once more real checkers land, this helper
+    /// can grow further replacements without touching existing tests.
+    fn checkers_with_real_authority_diff() -> Vec<Box<dyn Checker>> {
+        use ciel_checkers::AuthorityDiffChecker;
+        let mut checkers: Vec<Box<dyn Checker>> = all_stub_checkers()
+            .into_iter()
+            .filter(|c| c.name() != "authority_diff")
+            .collect();
+        checkers.push(Box::new(AuthorityDiffChecker::new()));
+        checkers
+    }
+
+    /// End-to-end: real April 2026 Drift exploit Tx #2 → pipeline with the
+    /// real Authority Diff checker → BLOCK verdict + signed 132-byte
+    /// attestation. This is the demo-defining assertion for the hackathon:
+    /// it proves the full stack — LiteSVM fork, CPI graph extraction, real
+    /// checker, scorer short-circuit on Critical, Ed25519 attestation — all
+    /// compose correctly on real on-chain data.
     ///
-    /// This is the most important integration property for the Week 5 demo.
-    /// With stub checkers the verdict will be APPROVE — that's expected.
-    /// The point is confirming the full pipeline composes against the real
-    /// Drift Tx #2 fixture. The verdict becomes BLOCK once the Authority Diff
-    /// checker replaces its stub in Week 2.
+    /// The fixture's transaction is a Squads `vaultTransactionExecute` that
+    /// CPIs Drift's `UpdateAdmin`, preceded by `AdvanceNonceAccount` (durable
+    /// nonce). Drift and Squads program IDs both appear in the outer call's
+    /// `accounts` list, so `MULTISIG_ADMIN_HANDOFF_CANDIDATE` fires with
+    /// severity Critical (base Medium → known-protocol bump Critical →
+    /// stack_height=1 shifts to High → durable-nonce bump back to Critical).
+    #[tokio::test]
+    async fn test_drift_real_fixture_produces_block() {
+        let fixture =
+            ciel_fixtures::load_drift_real_fixture().expect("load real drift fixture");
+
+        assert_eq!(
+            fixture.metadata.expected_verdict, "BLOCK",
+            "fixture metadata must declare BLOCK as the expected verdict"
+        );
+
+        let mut fork = ForkSimulator::new_offline();
+        for (pubkey, account) in &fixture.accounts {
+            let _ = fork.set_account(pubkey, account);
+        }
+
+        let signer = test_signer();
+        let pubkey = signer.pubkey_bytes();
+        let pipeline = VerdictPipeline::new(
+            fork,
+            checkers_with_real_authority_diff(),
+            signer,
+            fresh_staleness(),
+            None,
+            PipelineConfig { timeout_ms: 5000 },
+        );
+
+        let response = pipeline
+            .evaluate_raw_tx(&fixture.transaction)
+            .await
+            .expect("pipeline should produce attestation for real drift fixture");
+
+        assert_eq!(
+            response.verdict,
+            Verdict::Block,
+            "real Drift exploit must produce BLOCK (flags: {:?})",
+            response
+                .checker_results
+                .completed()
+                .iter()
+                .flat_map(|o| o.flags.iter().map(|f| f.code.clone()))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(response.attestation_bytes.len(), 132);
+        assert!(
+            verify_attestation(&pubkey, &response.attestation_bytes, &response.signature_bytes),
+            "real drift fixture attestation signature must verify"
+        );
+
+        // Confirm the Authority Diff checker was the flag source.
+        let authority_output = response
+            .checker_results
+            .completed()
+            .into_iter()
+            .find(|o| o.checker_name == "authority_diff")
+            .expect("authority_diff checker must complete");
+        assert!(
+            !authority_output.passed,
+            "authority_diff must fail on real Drift Tx #2"
+        );
+        assert_eq!(authority_output.severity, Severity::Critical);
+    }
+
+    /// End-to-end: synthetic Drift fixture → pipeline → signed attestation.
+    ///
+    /// Uses stub checkers so the verdict is APPROVE; this test exercises the
+    /// pipeline composition end-to-end against a fully in-memory fixture.
+    /// For the demo assertion on real on-chain data, see
+    /// `test_drift_real_fixture_produces_block`.
     #[tokio::test]
     async fn test_drift_fixture_through_pipeline() {
         let fixture = ciel_fixtures::load_drift_fixture().expect("load drift fixture");

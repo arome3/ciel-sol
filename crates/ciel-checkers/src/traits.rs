@@ -47,11 +47,7 @@ pub struct Intent {
 }
 
 pub use crate::oracle_cache::OracleCache;
-
-/// Stub type for known-good program registry. Real implementation will hold
-/// a set of known program IDs (Drift, Raydium, etc.).
-#[derive(Debug, Clone, Default)]
-pub struct ProgramRegistry;
+pub use crate::program_registry::ProgramRegistry;
 
 // ---------------------------------------------------------------------------
 // CheckerContext
