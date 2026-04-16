@@ -217,6 +217,7 @@ impl VerdictPipeline {
             let entry = VerdictLogEntry {
                 request_type: "raw_tx".to_string(),
                 tx_hash: tx_hash.to_vec(),
+                tx_signature: tx.signatures.first().map(|s| s.as_ref().to_vec()),
                 verdict: verdict_to_str(verdict).to_string(),
                 safety_score: Some(safety_score as f32),
                 optimality_score: Some(0.0),

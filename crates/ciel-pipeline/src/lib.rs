@@ -7,6 +7,7 @@ pub mod verdict_store;
 pub mod override_handler;
 pub mod pre_certified;
 pub mod intent_pipeline;
+pub mod outcome;
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -35,3 +36,4 @@ pub enum PipelineError {
 pub use pipeline::{PipelineConfig, PipelineTiming, VerdictPipeline, VerdictResponse};
 pub use scorer_stub::{compute_safety_score, encode_score_u16, score_to_verdict};
 pub use verdict_store::{log_verdict, VerdictLogEntry};
+pub use outcome::{spawn_outcome_capture, OutcomeCaptureConfig, OutcomeError};
