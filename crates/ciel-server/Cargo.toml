@@ -4,13 +4,24 @@ description = "axum REST + tonic gRPC API server"
 version.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "ciel-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "tx-from-fixture"
+path = "src/tx_from_fixture.rs"
+
 [dependencies]
 ciel-pipeline = { path = "../ciel-pipeline" }
 ciel-signer = { path = "../ciel-signer" }
+ciel-checkers = { path = "../ciel-checkers" }
+ciel-fork = { path = "../ciel-fork" }
 axum = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
 tower = { workspace = true }
+tower-http = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -18,6 +29,12 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 thiserror = { workspace = true }
+base64 = { workspace = true }
+bincode = { workspace = true }
+solana-sdk = { workspace = true }
+metrics = { workspace = true }
+metrics-exporter-prometheus = { version = "0.16", default-features = false }
+sqlx = { workspace = true, features = ["migrate"] }
 
 [build-dependencies]
 tonic-build = "0.12"
@@ -25,3 +42,5 @@ tonic-build = "0.12"
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 reqwest = { workspace = true }
+litesvm-address = { package = "solana-address", version = "2.6" }
+http-body-util = "0.1"

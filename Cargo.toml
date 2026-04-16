@@ -42,6 +42,7 @@ axum = "0.7"
 tonic = "0.12"
 prost = "0.13"
 tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "request-id", "util"] }
 
 # Crypto
 ed25519-dalek = { version = "2", features = ["rand_core"] }
@@ -72,6 +73,9 @@ colored = "2"
 # Encoding
 base64 = "0.22"
 bincode = "1"
+
+# Metrics
+metrics = "0.24"
 
 # Errors
 thiserror = "1"
