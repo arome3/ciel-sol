@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::Transaction;
 
 use ciel_fork::SimulationTrace;
@@ -40,10 +41,51 @@ pub trait Checker: Send + Sync {
 // ---------------------------------------------------------------------------
 
 /// Stub type for Intent. Real implementation lives in ciel-intent (Unit 10).
+///
+/// Carries both a free-text `description` (for display / LLM analysis) and an
+/// optional structured `spec` (preferred by verification). This mirrors the
+/// UniswapX / CoW Protocol / 1inch Fusion pattern of signed structured
+/// intents with free-text reserved for rendering.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Intent {
     pub description: String,
     pub constraints: Vec<String>,
+    /// Optional structured form. When present, the Intent Diff checker uses
+    /// this directly and skips parsing `description`. SDKs should populate
+    /// this whenever they have structured data available.
+    #[serde(default)]
+    pub spec: Option<IntentSpec>,
+}
+
+/// Structured intent spec consumed by the Intent Diff checker (Unit 12).
+///
+/// Amounts are raw token units (smallest denomination, not ui-amount). Mint
+/// pubkeys are canonical SPL token mints; for SOL use the wSOL mint
+/// (`So11111111111111111111111111111111111111112`) — the checker accepts both
+/// native-lamport and wSOL deltas to handle Jupiter/Raydium end-of-tx unwraps.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum IntentSpec {
+    Swap {
+        amount_in: u128,
+        mint_in: Pubkey,
+        mint_out: Pubkey,
+        /// When supplied, the checker enforces `actual_out_delta >= min_amount_out`
+        /// in addition to the direction-and-nonzero default.
+        #[serde(default)]
+        min_amount_out: Option<u128>,
+    },
+    Transfer {
+        amount: u128,
+        mint: Pubkey,
+        recipient: Pubkey,
+    },
+    Deposit {
+        amount: u128,
+        mint: Pubkey,
+        /// Program id of the target protocol.
+        protocol: Pubkey,
+    },
 }
 
 pub use crate::oracle_cache::OracleCache;

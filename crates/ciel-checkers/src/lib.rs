@@ -25,7 +25,7 @@ pub mod mev_sandwich;
 // Re-export public API
 pub use traits::{
     Checker, CheckerContext, CheckerError, CheckerOutput, CheckerResults, CheckerStatus, Flag,
-    Intent, OracleCache, ProgramRegistry, Severity, CHECKER_DEADLINE_MS,
+    Intent, IntentSpec, OracleCache, ProgramRegistry, Severity, CHECKER_DEADLINE_MS,
 };
 pub use oracle_cache::{
     CanonicalFeedMap, OracleParseError, OraclePrice, OracleType,
@@ -33,6 +33,14 @@ pub use oracle_cache::{
 };
 pub use oracle_sanity::OracleSanityChecker;
 pub use authority_diff::AuthorityDiffChecker;
+pub use intent_diff::{
+    FLAG_INTENT_BALANCE_MISMATCH, FLAG_INTENT_VERIFICATION_INCONCLUSIVE, IntentDiffChecker,
+    IntentDiffLlmAnalysis, intent_diff_llm_analyze,
+};
+pub use intent_rules::{
+    DEPOSIT_TOLERANCE_BPS, IntentPattern, RULE_TABLE_VERSION, SWAP_TOLERANCE_BPS,
+    TRANSFER_TOLERANCE_BPS, parse_intent_goal, token_info,
+};
 pub use runner::run_checkers;
 pub use stubs::all_stub_checkers;
 pub use hash::checker_outputs_hash;

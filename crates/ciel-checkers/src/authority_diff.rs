@@ -578,6 +578,7 @@ mod tests {
             logs: vec![],
             oracle_reads: vec![],
             token_approvals: vec![],
+            token_balance_deltas: vec![],
             compute_units_consumed: 0,
             fee: 5000,
         }
@@ -976,6 +977,7 @@ mod tests {
         let intent = Intent {
             description: "rotate authority on admin account".to_string(),
             constraints: vec![],
+            spec: None,
         };
         let ctx = ctx_with_intent(
             trace_with_calls(vec![spl_set_authority_call(2, target, &[], 2)]),
@@ -994,6 +996,7 @@ mod tests {
         let intent = Intent {
             description: "public disclosure of financials".to_string(),
             constraints: vec![],
+            spec: None,
         };
         let ctx = ctx_with_intent(trace_with_calls(vec![spl_close_call(2)]), intent);
         let out = AuthorityDiffChecker::new().check(&ctx).await;
@@ -1009,6 +1012,7 @@ mod tests {
         let intent = Intent {
             description: "set authority on drift admin".to_string(),
             constraints: vec![],
+            spec: None,
         };
         let ctx = ctx_with_intent(
             trace_with_calls(vec![spl_set_authority_call(

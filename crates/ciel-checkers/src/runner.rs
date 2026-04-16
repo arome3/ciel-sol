@@ -75,6 +75,7 @@ mod tests {
                 logs: vec![],
                 oracle_reads: vec![],
                 token_approvals: vec![],
+                token_balance_deltas: vec![],
                 compute_units_consumed: 0,
                 fee: 5000,
             },

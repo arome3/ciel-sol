@@ -16,7 +16,9 @@ pub use geyser::{GeyserConfig, GeyserSubscriber};
 pub use rpc::{CircuitBreaker, RpcManager};
 pub use simulator::ForkSimulator;
 pub use staleness::{StalenessConfig, StalenessState, StalenessTracker};
-pub use trace::{AccountChange, CpiCall, OracleRead, SimulationTrace, TokenApproval};
+pub use trace::{
+    AccountChange, CpiCall, OracleRead, SimulationTrace, TokenApproval, TokenBalanceDelta,
+};
 
 /// Error type for fork simulator operations.
 /// See spec Section 3.5 for RPC failover semantics.

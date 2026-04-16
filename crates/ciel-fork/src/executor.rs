@@ -93,6 +93,7 @@ pub fn execute_transaction(
                 logs: meta.logs.clone(),
                 oracle_reads,
                 token_approvals,
+                token_balance_deltas: Vec::new(),
                 compute_units_consumed: meta.compute_units_consumed,
                 fee: meta.fee,
             })
@@ -113,6 +114,7 @@ pub fn execute_transaction(
                 logs: meta.logs.clone(),
                 oracle_reads,
                 token_approvals,
+                token_balance_deltas: Vec::new(),
                 compute_units_consumed: meta.compute_units_consumed,
                 fee: meta.fee,
             })

@@ -40,6 +40,11 @@ pub struct SimulationTrace {
     pub oracle_reads: Vec<OracleRead>,
     /// SPL Token Approve instructions in the transaction.
     pub token_approvals: Vec<TokenApproval>,
+    /// SPL token balance deltas per (owner, mint). Empty on failure and on
+    /// traces produced before the simulator wires post-token-balance parsing;
+    /// consumed by the Intent Diff checker (Unit 12). See `TokenBalanceDelta`.
+    #[serde(default)]
+    pub token_balance_deltas: Vec<TokenBalanceDelta>,
     /// Compute units consumed by the transaction.
     pub compute_units_consumed: u64,
     /// Transaction fee in lamports.
@@ -97,6 +102,22 @@ pub struct OracleRead {
     pub oracle_pubkey: Pubkey,
     /// Oracle provider: "switchboard" or "pyth".
     pub oracle_type: String,
+}
+
+/// Signed change in an (owner, mint) SPL-token balance across a simulation.
+/// Mirrors the (mint, owner, amount) keying convention that Solana RPC uses in
+/// `solana_transaction_status::UiTransactionTokenBalance`, so a future interop
+/// layer can map RPC payloads into this shape without re-keying.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TokenBalanceDelta {
+    /// Owner of the token account whose balance changed.
+    pub owner: Pubkey,
+    /// SPL token mint.
+    pub mint: Pubkey,
+    /// Signed delta in raw token units (smallest denomination, i.e. RPC's
+    /// `amount` string, not `uiAmount`). i128 fits signed diffs of u64
+    /// balances on both sides of zero.
+    pub delta: i128,
 }
 
 /// An SPL Token Approve instruction detected in the transaction.
