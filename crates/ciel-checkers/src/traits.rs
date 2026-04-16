@@ -46,10 +46,7 @@ pub struct Intent {
     pub constraints: Vec<String>,
 }
 
-/// Stub type for oracle price cache. Real implementation will hold
-/// Switchboard/Pyth price snapshots at the pinned slot.
-#[derive(Debug, Clone, Default)]
-pub struct OracleCache;
+pub use crate::oracle_cache::OracleCache;
 
 /// Stub type for known-good program registry. Real implementation will hold
 /// a set of known program IDs (Drift, Raydium, etc.).

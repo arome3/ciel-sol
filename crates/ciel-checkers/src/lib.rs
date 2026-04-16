@@ -27,6 +27,11 @@ pub use traits::{
     Checker, CheckerContext, CheckerError, CheckerOutput, CheckerResults, CheckerStatus, Flag,
     Intent, OracleCache, ProgramRegistry, Severity, CHECKER_DEADLINE_MS,
 };
+pub use oracle_cache::{
+    CanonicalFeedMap, OracleParseError, OraclePrice, OracleType,
+    parse_switchboard_v2, parse_pyth_price, pyth_is_trading,
+};
+pub use oracle_sanity::OracleSanityChecker;
 pub use runner::run_checkers;
 pub use stubs::all_stub_checkers;
 pub use hash::checker_outputs_hash;

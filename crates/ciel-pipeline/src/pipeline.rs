@@ -154,7 +154,7 @@ impl VerdictPipeline {
             original_tx: tx.clone(),
             intent: None,
             slot,
-            oracle_cache: OracleCache,
+            oracle_cache: OracleCache::default(),
             known_programs: ProgramRegistry,
         };
         let checker_results = run_checkers(&checker_ctx, &self.checkers).await;

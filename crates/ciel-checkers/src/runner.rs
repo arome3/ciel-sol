@@ -81,7 +81,7 @@ mod tests {
             original_tx: Transaction::new_unsigned(Message::new(&[], None)),
             intent: None,
             slot: 100,
-            oracle_cache: OracleCache,
+            oracle_cache: OracleCache::default(),
             known_programs: ProgramRegistry,
         }
     }
@@ -118,7 +118,7 @@ mod tests {
         assert_eq!(results.outputs.len(), 7);
         assert!(!results.has_timeouts());
 
-        for (_, status) in &results.outputs {
+        for status in results.outputs.values() {
             match status {
                 CheckerStatus::Completed(output) => {
                     assert!(output.passed);

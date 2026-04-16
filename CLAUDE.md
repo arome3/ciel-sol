@@ -52,6 +52,17 @@ All Rust crates live under `crates/`. The workspace root is `./Cargo.toml`.
 6. **Off-chain and on-chain Borsh serialization must agree on the wire bytes for CielAttestation.** A committed fixture at `crates/ciel-signer/fixtures/ciel_attestation_v1.bin` (132 bytes) pins the exact wire format. Both `ciel-signer` (off-chain, borsh 1.x) and `ciel-assert` (on-chain, Anchor/borsh) must produce and consume identical bytes. The `test_ciel_attestation_wire_fixture` test catches drift. When implementing Unit 20 (CielAssert program), add a matching test that deserializes this same fixture file.
 7. **Checker implementations must use async I/O exclusively.** Any blocking call (`std::thread::sleep`, blocking file I/O, synchronous HTTP) inside a `Checker::check()` implementation will hold a tokio worker thread and block all other concurrent verdicts sharing that thread. Use `tokio::time::sleep`, `tokio::fs`, and async HTTP clients (e.g., `reqwest` with its default async API) instead. The `test_concurrent_runs_do_not_block_on_slow_checker` test in `crates/ciel-checkers/src/runner.rs` verifies this property — if a checker introduces a blocking call, this test will fail by exceeding 200ms for 10 concurrent runs.
 
+8. **Every checker that depends on account data must have integration tests against real mainnet bytes, not only synthetic fixtures.** Synthetic fixtures prove checker logic; mainnet bytes prove the parser handles real account layouts (discriminators, padding, nested types). Integration tests are `#[ignore]` to avoid CI rate limits but must exist and pass on demand. The Oracle Sanity checker's tests are in `crates/ciel-checkers/tests/parse_real_oracles.rs`. Apply this invariant to all future checker units.
+
+## Architectural Refinements (post-spec)
+
+9. **Oracle SDK parsing happens in the Geyser subscriber, not the checkers.** The Oracle Sanity checker consumes pre-parsed `OraclePrice` structs from `OracleCache` (defined in `ciel-checkers/src/oracle_cache.rs`). Raw Switchboard/Pyth account data → `OraclePrice` parsing uses vendored byte layouts (`parse_switchboard_v2`, `parse_pyth_price` in `oracle_cache.rs`) pinned to ABI-stable offsets from the Switchboard V2 and Pyth SDK repos. This isolates from SDK version skew (`switchboard-on-demand-client` pins borsh 0.9 / reqwest 0.11 — incompatible with solana-sdk 2.x). When oracle SDKs ship compatible versions, only the parser functions update; checkers don't change.
+
+## Open Integration Gaps
+
+- **Switchboard On-Demand + Pyth Lazer feeds**: The current parsers target Switchboard V2 (push) and Pyth legacy (push) account layouts. Both providers have migrated to pull-based feeds (On-Demand / Lazer) with different account layouts. The V2 parsers are validated against real mainnet bytes (see integration tests) but the production system will need On-Demand / Lazer parsers once those feeds are the primary data source. The V2 parsers are sufficient for the hackathon demo since the Drift exploit used V2 feeds.
+- **`test_drift_fixture_through_pipeline` uses synthetic oracle data**: The Drift fixture's oracle accounts use a simplified synthetic layout (`[price_f64 | std_dev_f64 | timestamp_i64]`), not real Switchboard V2 binary layout. Extending the fixture to use real V2 bytes would require re-encoding the manipulated oracle account in V2 format. This is tracked for the `drift-exploit-real-oracle` fixture planned in Unit 00.5's roadmap.
+
 ## Build Prerequisites
 
 ### macOS: C++ SDK headers for `protobuf-src`
@@ -71,6 +82,20 @@ Add to your shell profile to avoid re-discovering this. Symptoms without it: `fa
 - `cargo clippy -- -D warnings` must pass (warnings are errors).
 - Integration tests that need network (RPC, LLM APIs) are marked `#[ignore]` and run separately.
 - The Drift exploit replay E2E test (`crates/ciel-pipeline/tests/drift_replay_e2e.rs`) is the most important test. If it doesn't produce BLOCK, something is wrong.
+
+### Running integration tests against mainnet
+
+Oracle parser integration tests fetch real accounts from Solana mainnet RPC:
+
+```bash
+# With Helius RPC (preferred — no rate limits):
+HELIUS_API_KEY=your_key cargo test --package ciel-checkers --test parse_real_oracles -- --ignored --nocapture
+
+# With public RPC (rate-limited, works for single fetches):
+cargo test --package ciel-checkers --test parse_real_oracles -- --ignored --nocapture
+```
+
+These tests verify vendored parsers against real Switchboard V2 and Pyth account bytes. They assert prices fall in sane bands ($1–$1000 for SOL/USD) and cross-reference Switchboard vs Pyth within 5%. See Key Invariant #8.
 
 ## Commit Style
 
