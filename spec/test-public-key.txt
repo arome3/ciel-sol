@@ -1,0 +1,29 @@
+Ciel PEA / 1.0 — Test Public Key
+=================================
+
+This Ed25519 public key is used to sign the four example files under ./examples/.
+It is published here so that anyone can verify the example signatures without
+coordinating with the Ciel project.
+
+The test public key below matches the placeholder signer field in the pinned
+fixture `crates/ciel-signer/fixtures/ciel_attestation_v1.bin`. It is NOT the
+signer identity of the Ciel production verdict service. Production issuers
+MUST generate and publish their own keys.
+
+Public key (32 bytes, hex, lowercase):
+
+    4142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60
+
+To regenerate example signatures against this key, use the test keypair shipped
+at `spec/test-private-key.json` in the Ciel reference repository. The key is
+stored as a Solana-style 64-byte array (first 32 bytes = seed, last 32 bytes =
+public key). Run:
+
+    cargo run --package ciel-signer --example gen_pea_examples -- \
+        --out spec/examples \
+        --keyfile spec/test-private-key.json
+
+DO NOT USE THIS KEYPAIR FOR ANYTHING OTHER THAN REGENERATING SPEC EXAMPLES.
+It is intentionally committed to the repository. Any attacker can impersonate
+signatures under this key. Production signers MUST derive fresh keys and
+publish their public keys independently.

@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.ciel.xyz/ciel-pea-1.0.schema.json",
+  "title": "Ciel Pre-Execution Attestation (PEA) v1.0",
+  "description": "Cryptographically signed pre-execution safety verdict for a single transaction. See https://spec.ciel.xyz/ciel-pea-1.0 for the human-readable specification.",
+  "type": "object",
+  "required": ["spec_version", "attestation", "signature", "wire"],
+  "additionalProperties": true,
+  "properties": {
+    "spec_version": {
+      "type": "string",
+      "const": "ciel-pea/1.0"
+    },
+    "attestation": {
+      "type": "object",
+      "required": [
+        "magic",
+        "version",
+        "tx_hash",
+        "verdict",
+        "safety_score",
+        "optimality_score",
+        "checker_outputs_hash",
+        "slot",
+        "expiry_slot",
+        "signer",
+        "timestamp",
+        "timeout_at_ms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "magic": {
+          "type": "string",
+          "const": "CIEL",
+          "description": "ASCII tag. Decoded bytes must equal 0x4349454c."
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        },
+        "tx_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "32-byte lowercase hex hash of the transaction message."
+        },
+        "verdict": {
+          "type": "integer",
+          "enum": [0, 1, 2, 3],
+          "description": "0=APPROVE, 1=WARN, 2=BLOCK, 3=TIMEOUT."
+        },
+        "safety_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "description": "Safety score in basis points (0..10000) normally. Under verdict=TIMEOUT, this is the sentinel value 65535 (0xFFFF) indicating infrastructure failure, not a safety judgment."
+        },
+        "optimality_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "description": "Optimality score in basis points (0..10000). 0 if not computed. Under verdict=TIMEOUT, this is 65535 (0xFFFF) as a sentinel."
+        },
+        "checker_outputs_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "32-byte lowercase hex hash committing to the deterministic checker outputs that produced this verdict."
+        },
+        "slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615,
+          "description": "u64 slot number at which the attestation was issued."
+        },
+        "expiry_slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615,
+          "description": "u64 slot number at which the attestation becomes stale."
+        },
+        "signer": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "32-byte lowercase hex Ed25519 public key of the issuer."
+        },
+        "timestamp": {
+          "type": "integer",
+          "description": "i64 unix seconds when the attestation was issued. Advisory only; freshness is slot-based."
+        },
+        "timeout_at_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "description": "u16 millisecond budget that elapsed. Zero unless verdict=TIMEOUT."
+        }
+      }
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{128}$",
+      "description": "64-byte lowercase hex Ed25519 signature over the wire bytes."
+    },
+    "wire": {
+      "type": "object",
+      "required": ["borsh_b64", "fixture_version"],
+      "additionalProperties": false,
+      "properties": {
+        "borsh_b64": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "description": "Base64-encoded 132 wire bytes that were signed. Must decode to bytes identical to Borsh-serializing the attestation object in the field order defined by the spec."
+        },
+        "fixture_version": {
+          "type": "string",
+          "const": "ciel_attestation_v1"
+        }
+      }
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "severity"],
+        "additionalProperties": true,
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Stable flag identifier, e.g. ORACLE_DEVIATION, AUTHORITY_HIJACK."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["INFO", "WARN", "BLOCK"]
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "intent_nl": { "type": "string" },
+        "intent_fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "intent_satisfied": {
+          "type": ["boolean", "null"]
+        }
+      }
+    },
+    "issuer": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "agent_id": { "type": "string" },
+        "operator_pubkey_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "identity_proof": {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["none", "world_id", "ens", "revoked_world_id"]
+            },
+            "value": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

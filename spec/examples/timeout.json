@@ -1,0 +1,30 @@
+{
+  "spec_version": "ciel-pea/1.0",
+  "_description": "Example TIMEOUT verdict. The issuer's infrastructure did not complete the evaluation within deadline. MUST NOT be treated as APPROVE or WARN. MUST NOT be overridden. The caller SHOULD retry with a fresh submission. Regenerate signature via gen_pea_examples binary.",
+  "attestation": {
+    "magic": "CIEL",
+    "version": 1,
+    "tx_hash": "e001e002e003e004e005e006e007e008e009e00ae00be00ce00de00ee00fe010",
+    "verdict": 3,
+    "safety_score": 65535,
+    "optimality_score": 65535,
+    "checker_outputs_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "slot": 350000300,
+    "expiry_slot": 350000302,
+    "signer": "4142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60",
+    "timestamp": 1712000300,
+    "timeout_at_ms": 80
+  },
+  "signature": "TO_BE_REGENERATED_BY_gen_pea_examples_BINARY_THIS_PLACEHOLDER_IS_64_BYTES_HEX_ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+  "wire": {
+    "borsh_b64": "TO_BE_REGENERATED_BY_gen_pea_examples_BINARY",
+    "fixture_version": "ciel_attestation_v1"
+  },
+  "flags": [
+    {
+      "code": "INFRA_DEADLINE_EXCEEDED",
+      "severity": "INFO",
+      "detail": "Evaluator did not complete within 80ms budget; no verdict-affecting output produced"
+    }
+  ]
+}

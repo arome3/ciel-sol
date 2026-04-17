@@ -3,6 +3,7 @@
 
 pub mod attestation;
 pub mod instruction;
+pub mod pea;
 pub mod signer;
 
 pub use attestation::{
@@ -11,6 +12,10 @@ pub use attestation::{
     TIMEOUT_SENTINEL,
 };
 pub use instruction::build_ed25519_verify_instruction;
+pub use pea::{
+    from_pea_json, timeout_score_sentinel, to_pea_json, verdict_label, PeaFlag, PeaFlagSeverity,
+    PeaIntent, PEA_FIXTURE_VERSION, PEA_SPEC_VERSION,
+};
 pub use signer::{verify_attestation, CielSigner};
 
 /// Error type for signer operations.

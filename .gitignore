@@ -33,9 +33,14 @@ test-ledger/
 # Postgres data (Docker volume)
 pgdata/
 
-# Markdown (specs, docs, prompts — kept local)
+# Markdown (specs, docs, prompts — kept local by default)
 *.md
 !README.md
+# The public PEA/1.0 specification IS tracked — carve spec/ out of the global ignore
+!spec/**/*.md
+
+# Private strategy / founder docs — never commit
+private/
 
 # Build artifacts
 *.so

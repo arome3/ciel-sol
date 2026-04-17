@@ -1,0 +1,40 @@
+{
+  "spec_version": "ciel-pea/1.0",
+  "_description": "Example WARN verdict. Transaction allowed but carries a notable caveat. Regenerate signature via gen_pea_examples binary.",
+  "attestation": {
+    "magic": "CIEL",
+    "version": 1,
+    "tx_hash": "c001c002c003c004c005c006c007c008c009c00ac00bc00cc00dc00ec00fc010",
+    "verdict": 1,
+    "safety_score": 6800,
+    "optimality_score": 5500,
+    "checker_outputs_hash": "d001d002d003d004d005d006d007d008d009d00ad00bd00cd00dd00ed00fd010",
+    "slot": 350000200,
+    "expiry_slot": 350000202,
+    "signer": "4142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60",
+    "timestamp": 1712000200,
+    "timeout_at_ms": 0
+  },
+  "signature": "TO_BE_REGENERATED_BY_gen_pea_examples_BINARY_THIS_PLACEHOLDER_IS_64_BYTES_HEX_ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+  "wire": {
+    "borsh_b64": "TO_BE_REGENERATED_BY_gen_pea_examples_BINARY",
+    "fixture_version": "ciel_attestation_v1"
+  },
+  "flags": [
+    {
+      "code": "ORACLE_DEVIATION",
+      "severity": "WARN",
+      "detail": "Switchboard vs Pyth spread 8.2% — elevated but within acceptance band"
+    },
+    {
+      "code": "MEV_SANDWICH_RISK",
+      "severity": "WARN",
+      "detail": "Slippage tolerance high for route size"
+    }
+  ],
+  "intent": {
+    "intent_nl": "swap 10000 USDC for SOL",
+    "intent_fingerprint": "eeeeeeee0123456789eeeeeeee0123456789eeeeeeee0123456789eeeeeeee01",
+    "intent_satisfied": true
+  }
+}

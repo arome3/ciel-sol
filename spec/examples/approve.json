@@ -1,0 +1,24 @@
+{
+  "spec_version": "ciel-pea/1.0",
+  "_description": "Example APPROVE verdict. Values are illustrative. Regenerate signature via gen_pea_examples binary using the test keypair.",
+  "attestation": {
+    "magic": "CIEL",
+    "version": 1,
+    "tx_hash": "a001a002a003a004a005a006a007a008a009a00aa00ba00ca00da00ea00fa010",
+    "verdict": 0,
+    "safety_score": 9500,
+    "optimality_score": 8200,
+    "checker_outputs_hash": "b001b002b003b004b005b006b007b008b009b00ab00bb00cb00db00eb00fb010",
+    "slot": 350000100,
+    "expiry_slot": 350000102,
+    "signer": "4142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60",
+    "timestamp": 1712000100,
+    "timeout_at_ms": 0
+  },
+  "signature": "TO_BE_REGENERATED_BY_gen_pea_examples_BINARY_THIS_PLACEHOLDER_IS_64_BYTES_HEX_ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+  "wire": {
+    "borsh_b64": "TO_BE_REGENERATED_BY_gen_pea_examples_BINARY",
+    "fixture_version": "ciel_attestation_v1"
+  },
+  "flags": []
+}
