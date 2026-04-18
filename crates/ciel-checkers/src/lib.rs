@@ -33,6 +33,7 @@ pub use oracle_cache::{
 };
 pub use oracle_sanity::OracleSanityChecker;
 pub use authority_diff::AuthorityDiffChecker;
+pub use approval_abuse::{ApprovalAbuseChecker, FLAG_UNLIMITED_APPROVAL_UNKNOWN_PROGRAM};
 pub use intent_diff::{
     FLAG_INTENT_BALANCE_MISMATCH, FLAG_INTENT_VERIFICATION_INCONCLUSIVE, IntentDiffChecker,
     IntentDiffLlmAnalysis, intent_diff_llm_analyze,
